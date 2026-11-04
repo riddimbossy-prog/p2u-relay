@@ -41,9 +41,9 @@ const PH={'x-pawa-brand':'betpawa-ghana','x-pawa-language':'en',devicetype:'web'
 async function betpawa(code){const it=(await j(`https://www.betpawa.com.gh/api/sportsbook/v3/booking-number/${encodeURIComponent(code)}`,PH)).items;if(!it||!it.length)return null;
   return Promise.all(it.map(async x=>{const e=x.eventInfo,P=e.participants||[],H=(P.find(p=>p.position===1)||{}).name,A=(P.find(p=>p.position===2)||{}).name,s=x.selections[0];
     let sr=null;try{const f=await j('https://www.betpawa.com.gh/api/sportsbook/v4/events/'+e.id,PH);const w=(f.widgets||[]).find(w=>w.type==='SPORTRADAR');if(w)sr='sr:match:'+w.id}catch(_){}
-    let sel=s.selectionInfo.displayName||s.selectionInfo.name;const mk=s.market.displayName||s.market.name;
+    const hc=s.selectionInfo.handicap||(s.market.specifier||{}).total||s.market.formattedHandicap||'';let sel=String(s.selectionInfo.displayName||s.selectionInfo.name).replace(/\{formattedHandicap\}|\{handicap\}/g,hc).trim();const mk=s.market.displayName||s.market.name;
     if(/^1X2/i.test(s.market.name))sel=sel==='1'?H:sel==='2'?A:'Draw';else if(/double chance/i.test(mk))sel={'1X':H+' or Draw','12':H+' or '+A,'X2':'Draw or '+A}[sel]||sel;
-    else if(/over|under/i.test(sel)&&s.market.formattedHandicap&&!/\d/.test(sel))sel=sel+' '+s.market.formattedHandicap;
+    else if(/^(over|under)$/i.test(sel)&&hc)sel=sel+' '+hc;
     return{eventId:sr||('bp:'+e.id),match:H+' v '+A,league:e.competition?.name||'',market:mk,selection:sel,odds:+(x.odds||{}).price||null,kickoff:Date.parse(e.startTime)}}))}
 const BOOKS={sportybet:c=>sporty('www.sportybet.com',c),footballcom:c=>sporty('www.football.com',c),msport,betika,betpawa};
 function send(res,code,obj,origin){const h={'Content-Type':'application/json','Cache-Control':'public, max-age=30',Vary:'Origin'};
