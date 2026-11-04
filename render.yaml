@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: p2u-relay
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: "true"
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
