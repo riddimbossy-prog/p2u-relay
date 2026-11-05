@@ -102,6 +102,7 @@ let currentPath='';
 function send(res,code,obj,origin){const h={'Content-Type':'application/json','Cache-Control':'public, max-age=30',Vary:'Origin'};
   if(origin&&ORIG.some(r=>r.test(origin))){h['Access-Control-Allow-Origin']=origin;h['Access-Control-Allow-Methods']='GET, POST, OPTIONS';h['Access-Control-Allow-Headers']='Content-Type'}if(/^\/(pay|unlock)/.test(currentPath||''))h['Cache-Control']='no-store';res.writeHead(code,h);res.end(code===204?'':JSON.stringify(obj))}
 http.createServer(async(req,res)=>{const o=req.headers.origin,u=new URL(req.url,'http://x'),p=u.pathname;
+  if(req.method==='OPTIONS'&&p==='/analytics/collect')return adminAnalytics.handle(req,res,p,o);
   if(req.method==='OPTIONS')return send(res,204,{},o);
   currentPath=p;
   if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now()},o);
