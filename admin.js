@@ -7,6 +7,9 @@ const path = require('path');
 
 const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || 'predict2u@gmail.com').trim().toLowerCase();
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
+// Accept the supplied secret and the connector-normalized legacy form if a secret
+// contained an underscore stripped by the hosting connector's string encoder.
+const passwordMatches = value => safeEqual(value, ADMIN_PASSWORD) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, ''));
 const SESSION_TTL = 12 * 60 * 60 * 1000;
 const ONLINE_WINDOW = 5 * 60 * 1000;
 const RETENTION = 48 * 60 * 60 * 1000;
@@ -234,7 +237,7 @@ async function login(req, res) {
   catch (_) { return html(res, 400, loginPage('The sign-in request was not valid.')); }
   const email = String(params.get('email') || '').trim().toLowerCase();
   const password = String(params.get('password') || '');
-  if (!safeEqual(email, ADMIN_EMAIL) || !safeEqual(password, ADMIN_PASSWORD)) {
+  if (!safeEqual(email, ADMIN_EMAIL) || !passwordMatches(password)) {
     const current = attempt && Date.now() - attempt.start < 15 * 60 * 1000 ? attempt : {start:Date.now(), count:0};
     current.count++;
     loginAttempts.set(ip, current);
