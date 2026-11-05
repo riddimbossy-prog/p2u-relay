@@ -234,6 +234,7 @@ async function login(req, res) {
   catch (_) { return html(res, 400, loginPage('The sign-in request was not valid.')); }
   const email = String(params.get('email') || '').trim().toLowerCase();
   const password = String(params.get('password') || '');
+  console.log('admin login diagnostic',JSON.stringify({emailMatches:safeEqual(email,ADMIN_EMAIL),passwordMatches:safeEqual(password,ADMIN_PASSWORD),configuredLength:ADMIN_PASSWORD.length,receivedLength:password.length,configuredHash:crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex').slice(0,16),receivedHash:crypto.createHash('sha256').update(password).digest('hex').slice(0,16)}));
   if (!safeEqual(email, ADMIN_EMAIL) || !safeEqual(password, ADMIN_PASSWORD)) {
     const current = attempt && Date.now() - attempt.start < 15 * 60 * 1000 ? attempt : {start:Date.now(), count:0};
     current.count++;
