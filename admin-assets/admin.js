@@ -29,7 +29,7 @@
   function compact(id,items){var el=$(id);if(!items||!items.length){el.innerHTML='<p class="empty-state">Unlock clicks will appear here.</p>';return;}el.innerHTML=items.map(function(item){return '<div class="compact-row"><span title="'+esc(item.name)+'">'+esc(item.name)+'</span><strong>'+fmt.format(item.value)+' clicks</strong></div>';}).join('');}
   function sizeCanvas(){var box=canvas.getBoundingClientRect(),ratio=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(box.width*ratio);canvas.height=Math.round(box.height*ratio);ctx.setTransform(ratio,0,0,ratio,0,0);drawChart(state?state.minutes:[],1);}
   function drawChart(minutes,progress){
-    var w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);points=[];
+    var w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;ctx.clearRect(0,0,w,h);points=[];
     if(!minutes||!minutes.length)return;
     var values=minutes.map(function(m){return m.value;}),max=Math.max.apply(null,values.concat([3])),left=5,right=5,top=13,bottom=14;
     ctx.lineWidth=1;ctx.strokeStyle='rgba(180,220,197,.06)';

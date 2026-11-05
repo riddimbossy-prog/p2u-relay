@@ -107,6 +107,7 @@ function loginPage(error) {
   return asset('login.html').toString().replace('{{ERROR}}', error ? `<p class="login-error" role="alert">${esc(error)}</p>` : '');
 }
 function authRequired(req, res) {
+  if (adminSession(req)) return true;
   if (!ADMIN_PASSWORD) {
     html(res, 503, loginPage('Admin login is not configured yet.'));
     return null;
