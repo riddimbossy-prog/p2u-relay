@@ -7,9 +7,10 @@ const path = require('path');
 
 const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || 'predict2u@gmail.com').trim().toLowerCase();
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
-// Accept the supplied secret and the connector-normalized legacy form if a secret
-// contained an underscore stripped by the hosting connector's string encoder.
-const passwordMatches = value => safeEqual(value, ADMIN_PASSWORD) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '')) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '%5F')) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '%5f'));
+const ADMIN_PASSWORD_SHA256 = String(process.env.ADMIN_PASSWORD_SHA256 || '').toLowerCase();
+const passwordMatches = value => ADMIN_PASSWORD_SHA256
+  ? safeEqual(crypto.createHash('sha256').update(value).digest('hex'), ADMIN_PASSWORD_SHA256)
+  : safeEqual(value, ADMIN_PASSWORD);
 const SESSION_TTL = 12 * 60 * 60 * 1000;
 const ONLINE_WINDOW = 5 * 60 * 1000;
 const RETENTION = 48 * 60 * 60 * 1000;
@@ -111,7 +112,7 @@ function loginPage(error) {
 }
 function authRequired(req, res) {
   if (adminSession(req)) return true;
-  if (!ADMIN_PASSWORD) {
+  if (!ADMIN_PASSWORD && !ADMIN_PASSWORD_SHA256) {
     html(res, 503, loginPage('Admin login is not configured yet.'));
     return null;
   }
@@ -274,7 +275,7 @@ async function handle(req, res, pathname, origin) {
   }
   if (pathname === '/admin/metrics') {
     if (req.method !== 'GET') return json(res, 405, {error:'GET only'}, origin, true);
-    if (!ADMIN_PASSWORD || !adminSession(req)) return json(res, 401, {error:'Authentication required'}, origin, true);
+    if ((!ADMIN_PASSWORD && !ADMIN_PASSWORD_SHA256) || !adminSession(req)) return json(res, 401, {error:'Authentication required'}, origin, true);
     return json(res, 200, metrics(), origin, true);
   }
   return html(res, 404, loginPage('Page not found.'));
