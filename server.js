@@ -104,7 +104,7 @@ function send(res,code,obj,origin){const h={'Content-Type':'application/json','C
 http.createServer(async(req,res)=>{const o=req.headers.origin,u=new URL(req.url,'http://x'),p=u.pathname;
   if(req.method==='OPTIONS')return send(res,204,{},o);
   currentPath=p;
-  if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now(),adminConfigured:!!process.env.ADMIN_PASSWORD,adminLength:String(process.env.ADMIN_PASSWORD||'').length,adminHash:require('crypto').createHash('sha256').update(process.env.ADMIN_PASSWORD||'').digest('hex').slice(0,16)},o);
+  if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now()},o);
   if(p==='/analytics/collect'||p==='/admin'||p.startsWith('/admin/')){try{return await adminAnalytics.handle(req,res,p,o)}catch(e){console.error('admin route error',e.message);if(!res.headersSent){res.writeHead(500,{'Content-Type':'text/plain','Cache-Control':'no-store'});res.end('Admin route error')}return}}
   if(p.startsWith('/pay/')||p==='/unlock'||p==='/paystack/webhook'){try{if(await payRoute(req,res,p,u,o))return}catch(e){return send(res,502,{error:'payment error',detail:String(e.message||e)},o)}}
   const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
