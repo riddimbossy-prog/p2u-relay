@@ -1,4 +1,5 @@
-// Predict2U code-lookup relay: public booking-code lookups + live scores. No secrets.
+// Predict2U relay: public booking-code lookups + live scores + pay-per-code unlock (Paystack). Secrets only via env vars.
+const crypto=require('crypto');
 const http=require('http');
 const PORT=process.env.PORT||10000;
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
@@ -45,12 +46,65 @@ async function betpawa(code){const it=(await j(`https://www.betpawa.com.gh/api/s
     if(/^1X2/i.test(s.market.name))sel=sel==='1'?H:sel==='2'?A:'Draw';else if(/double chance/i.test(mk))sel={'1X':H+' or Draw','12':H+' or '+A,'X2':'Draw or '+A}[sel]||sel;
     else if(/^(over|under)$/i.test(sel)&&hc)sel=sel+' '+hc;
     return{eventId:sr||('bp:'+e.id),match:H+' v '+A,league:e.competition?.name||'',market:mk,selection:sel,odds:+(x.odds||{}).price||null,kickoff:Date.parse(e.startTime)}}))}
+
+// ---------- Pay-per-code unlock ----------
+const PSK=process.env.PAYSTACK_SECRET_KEY||'',PPK=process.env.PAYSTACK_PUBLIC_KEY||'',LKEY=process.env.LOCK_KEY||'';
+const LURL=process.env.LOCKED_URL||'https://predict2u.com/locked.enc.json';
+let LOCK={t:0,meta:{},data:{}};
+async function locked(){if(Date.now()-LOCK.t<60e3&&LOCK.t)return LOCK;
+  try{const r=await fetch(LURL+'?t='+Date.now(),{headers:{'User-Agent':UA}});if(!r.ok)throw new Error('locked '+r.status);const e=await r.json();let data={};
+    if(LKEY){const k=Buffer.from(LKEY,'hex'),b=Buffer.from(e.data,'base64'),d=crypto.createDecipheriv('aes-256-gcm',k,Buffer.from(e.iv,'base64'));d.setAAD(Buffer.from('p2u-lock-v1'));d.setAuthTag(b.subarray(b.length-16));
+      data=JSON.parse(Buffer.concat([d.update(b.subarray(0,b.length-16)),d.final()]).toString())}
+    LOCK={t:Date.now(),meta:e.ids||{},data}}catch(err){console.log('locked fetch failed',err.message);if(!LOCK.t)LOCK.t=Date.now()-50e3}
+  return LOCK}
+const b64u=b=>Buffer.from(b).toString('base64url');
+function sign(o){const p=b64u(JSON.stringify(o));return p+'.'+crypto.createHmac('sha256',LKEY).update(p).digest('base64url')}
+function unsign(t){const [p,h]=String(t||'').split('.');if(!p||!h||!LKEY)return null;const x=crypto.createHmac('sha256',LKEY).update(p).digest('base64url');
+  if(x.length!==h.length||!crypto.timingSafeEqual(Buffer.from(x),Buffer.from(h)))return null;try{return JSON.parse(Buffer.from(p,'base64url').toString())}catch(e){return null}}
+async function ps(path,opt={}){const r=await fetch('https://api.paystack.co'+path,{...opt,headers:{Authorization:'Bearer '+PSK,'Content-Type':'application/json',...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok||d.status===false)throw new Error(d.message||('paystack '+r.status));return d.data}
+function body(req,max=1e5){return new Promise((ok,no)=>{let b='';req.on('data',c=>{b+=c;if(b.length>max){no(new Error('too big'));req.destroy()}});req.on('end',()=>ok(b));req.on('error',no)})}
+const payOn=()=>!!(PSK&&PPK&&LKEY);
+const validId=id=>/^(banker|medium|hot)-\d{8}$/.test(String(id||''));
+function grant(L,id,ref,email){const c=L.data[id];return{id,codes:c?c.codes:null,title:c?c.title:(L.meta[id]||{}).title,token:sign({id,ref,email,iat:Date.now()})}}
+const PAID=new Map();// reference -> {id,email} from webhook (memory hint only; Paystack is the source of truth)
+async function checkTx(ref,id){const t=await ps('/transaction/verify/'+encodeURIComponent(ref));const m=t.metadata||{},L=await locked(),meta=L.meta[m.slip]||{};
+  const price=Math.round((meta.price||50)*100);
+  if(t.status!=='success'||t.currency!=='GHS'||+t.amount<price||!validId(m.slip)||(id&&m.slip!==id))return null;
+  return grant(L,m.slip,t.reference,(t.customer||{}).email||'')}
+async function payRoute(req,res,p,u,o){
+  if(p==='/pay/config'){const L=await locked();return send(res,200,{enabled:payOn(),publicKey:payOn()?PPK:null,currency:'GHS',locked:L.meta},o),true}
+  if(p==='/paystack/webhook'&&req.method==='POST'){const raw=await body(req,1e6);
+    const sig=String(req.headers['x-paystack-signature']||''),h=PSK?crypto.createHmac('sha512',PSK).update(raw).digest('hex'):'';
+    if(!PSK||sig.length!==h.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(h))){res.writeHead(401);res.end('bad signature');return true}
+    try{const e=JSON.parse(raw);if(e.event==='charge.success'){const d=e.data||{};PAID.set(d.reference,{id:(d.metadata||{}).slip,email:(d.customer||{}).email});console.log('paid',d.reference,(d.metadata||{}).slip)}}catch(_){}
+    res.writeHead(200);res.end('ok');return true}
+  if(!p.startsWith('/pay/')&&p!=='/unlock')return false;
+  if(!payOn())return send(res,503,{error:'payments coming soon',enabled:false},o),true;
+  if(req.method!=='POST')return send(res,405,{error:'POST only'},o),true;
+  let q={};try{q=JSON.parse(await body(req)||'{}')}catch(e){return send(res,400,{error:'bad json'},o),true}
+  const email=String(q.email||'').trim().toLowerCase();
+  if(p==='/pay/init'){if(!validId(q.id))return send(res,400,{error:'bad slip'},o),true;const L=await locked();if(!L.meta[q.id])return send(res,404,{error:'slip not on sale'},o),true;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return send(res,400,{error:'valid email needed'},o),true;
+    const back=String(q.back||'https://predict2u.com/').replace(/[#?].*$/,'');
+    const d=await ps('/transaction/initialize',{method:'POST',body:JSON.stringify({email,amount:Math.round((L.meta[q.id].price||50)*100),currency:'GHS',channels:['mobile_money','card'],
+      callback_url:/^https:\/\/(www\.)?predict2u\.com\//.test(back)?back+'?p2uslip='+q.id:'https://predict2u.com/',metadata:{slip:q.id,device:String(q.device||'').slice(0,64),custom_fields:[{display_name:'Slip',variable_name:'slip',value:q.id}]}})});
+    return send(res,200,{access_code:d.access_code,reference:d.reference,authorization_url:d.authorization_url},o),true}
+  if(p==='/pay/verify'){const g=await checkTx(String(q.reference||''),q.id);return g?send(res,200,g,o):send(res,402,{error:'payment not confirmed'},o),true}
+  if(p==='/unlock'){const t=unsign(q.token);if(!t||!validId(t.id))return send(res,401,{error:'bad token'},o),true;const L=await locked();return send(res,200,grant(L,t.id,t.ref,t.email),o),true}
+  if(p==='/pay/restore'){if(!email)return send(res,400,{error:'email needed'},o),true;const L=await locked(),out=[];
+    try{const c=await ps('/customer/'+encodeURIComponent(email));const tx=await ps('/transaction?status=success&perPage=100&customer='+c.id);
+      for(const t of tx||[]){const id=(t.metadata||{}).slip;if(validId(id)&&L.meta[id]&&t.currency==='GHS'&&+t.amount>=Math.round((L.meta[id].price||50)*100)&&!out.some(x=>x.id===id))out.push(grant(L,id,t.reference,email))}}catch(e){}
+    return send(res,200,{unlocks:out},o),true}
+  return send(res,404,{error:'not found'},o),true}
 const BOOKS={sportybet:c=>sporty('www.sportybet.com',c),footballcom:c=>sporty('www.football.com',c),msport,betika,betpawa};
+let currentPath='';
 function send(res,code,obj,origin){const h={'Content-Type':'application/json','Cache-Control':'public, max-age=30',Vary:'Origin'};
-  if(origin&&ORIG.some(r=>r.test(origin))){h['Access-Control-Allow-Origin']=origin;h['Access-Control-Allow-Methods']='GET, OPTIONS'}res.writeHead(code,h);res.end(code===204?'':JSON.stringify(obj))}
+  if(origin&&ORIG.some(r=>r.test(origin))){h['Access-Control-Allow-Origin']=origin;h['Access-Control-Allow-Methods']='GET, POST, OPTIONS';h['Access-Control-Allow-Headers']='Content-Type'}if(/^\/(pay|unlock)/.test(currentPath||''))h['Cache-Control']='no-store';res.writeHead(code,h);res.end(code===204?'':JSON.stringify(obj))}
 http.createServer(async(req,res)=>{const o=req.headers.origin,u=new URL(req.url,'http://x'),p=u.pathname;
   if(req.method==='OPTIONS')return send(res,204,{},o);
-  if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),t:Date.now()},o);
+  currentPath=p;
+  if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now()},o);
+  if(p.startsWith('/pay/')||p==='/unlock'||p==='/paystack/webhook'){try{if(await payRoute(req,res,p,u,o))return}catch(e){return send(res,502,{error:'payment error',detail:String(e.message||e)},o)}}
   const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
   if(limited(ip))return send(res,429,{error:'rate limited (60/min)'},o);
   try{const m=p.match(/^\/code\/([a-z]+)\/([A-Za-z0-9]{4,14})$/);

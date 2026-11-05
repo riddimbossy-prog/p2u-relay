@@ -8,3 +8,10 @@ services:
     startCommand: node server.js
     healthCheckPath: /health
     autoDeploy: true
+    envVars:
+      - key: LOCK_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
