@@ -225,7 +225,6 @@ function metrics() {
   };
 }
 async function login(req, res) {
-  console.log('admin login config fingerprint',ADMIN_PASSWORD.length,crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex').slice(0,16));
   if (!ADMIN_PASSWORD) return html(res, 503, loginPage('Admin login is not configured yet.'));
   const ip = clientIp(req) || 'unknown';
   const attempt = loginAttempts.get(ip);
