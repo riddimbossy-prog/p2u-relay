@@ -1,6 +1,7 @@
 // Predict2U relay: public booking-code lookups + live scores + pay-per-code unlock (Paystack). Secrets only via env vars.
 const crypto=require('crypto');
 const http=require('http');
+const adminAnalytics=require('./admin');
 const PORT=process.env.PORT||10000;
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const ORIG=[/^https:\/\/(www\.)?predict2u\.com$/,/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
@@ -104,6 +105,7 @@ http.createServer(async(req,res)=>{const o=req.headers.origin,u=new URL(req.url,
   if(req.method==='OPTIONS')return send(res,204,{},o);
   currentPath=p;
   if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now()},o);
+  if(p==='/analytics/collect'||p==='/admin'||p.startsWith('/admin/')){try{return await adminAnalytics.handle(req,res,p,o)}catch(e){console.error('admin route error',e.message);if(!res.headersSent){res.writeHead(500,{'Content-Type':'text/plain','Cache-Control':'no-store'});res.end('Admin route error')}return}}
   if(p.startsWith('/pay/')||p==='/unlock'||p==='/paystack/webhook'){try{if(await payRoute(req,res,p,u,o))return}catch(e){return send(res,502,{error:'payment error',detail:String(e.message||e)},o)}}
   const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
   if(limited(ip))return send(res,429,{error:'rate limited (60/min)'},o);

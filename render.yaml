@@ -9,6 +9,10 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      - key: ADMIN_EMAIL
+        value: predict2u@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: LOCK_KEY
         sync: false
       - key: PAYSTACK_SECRET_KEY

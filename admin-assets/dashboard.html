@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#060b0b">
+  <title>Live command centre · Predict2U</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+  <script src="/admin/assets/admin.js" defer></script>
+</head>
+<body class="dashboard-body">
+  <div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="https://predict2u.com/" aria-label="Open Predict2U">
+        <span class="brand-mark">P2U</span><span class="brand-copy"><strong>predict<span>2</span>u</strong><small>OWNER CONSOLE</small></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="secure-pill"><span aria-hidden="true">◆</span> Private</span>
+        <form method="post" action="/admin/logout"><button class="icon-button" title="Sign out" aria-label="Sign out" type="submit">↗</button></form>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow">THE PULSE OF PREDICT2U</p><h1>Your audience. <span>Alive.</span></h1><p class="intro-copy">Real-time insight into every visit, discovery and unlock.</p></div>
+        <div class="sync-status"><span class="sync-line"></span><div><strong><i class="live-dot"></i> Live sync</strong><small id="last-updated">Connecting…</small></div><button id="refresh" class="icon-button" type="button" title="Refresh now" aria-label="Refresh now">↻</button></div>
+      </section>
+
+      <section class="hero-grid" aria-label="Live audience">
+        <article class="glass-card online-card">
+          <div class="card-shine"></div>
+          <div class="card-label"><span><i class="live-dot"></i> ONLINE NOW</span><span class="live-badge">LIVE</span></div>
+          <div class="online-layout"><div><div class="online-number" id="online-now" aria-live="polite">0</div><p>people exploring right now</p></div><div class="radar" aria-hidden="true"><i></i><i></i><i></i><b></b></div></div>
+          <div class="online-foot"><span>Active in the last 5 minutes</span><span class="trend">● LIVE</span></div>
+        </article>
+        <article class="glass-card chart-card">
+          <div class="card-heading"><div><p class="eyebrow">LAST 60 MINUTES</p><h2>Visits per minute</h2></div><span class="chart-total"><strong id="hour-views">0</strong><small>page views</small></span></div>
+          <div class="chart-wrap"><canvas id="traffic-chart" role="img" aria-label="Page visits per minute for the last sixty minutes"></canvas><div id="chart-tooltip" class="chart-tooltip" hidden></div></div>
+          <div class="chart-axis"><span>60 min ago</span><span>30 min ago</span><span>Now</span></div>
+        </article>
+      </section>
+
+      <section class="metric-grid" aria-label="Today's summary">
+        <article class="glass-card metric-card accent-green"><div class="metric-top"><span>UNIQUE VISITORS</span><span class="metric-icon">◎</span></div><strong class="metric-value" id="visitors-today">0</strong><p>Today · anonymous visitors</p><span class="metric-line"></span></article>
+        <article class="glass-card metric-card accent-gold"><div class="metric-top"><span>PAGE VIEWS</span><span class="metric-icon">▥</span></div><strong class="metric-value" id="views-today">0</strong><p>Pages explored today</p><span class="metric-line"></span></article>
+        <article class="glass-card metric-card accent-lime"><div class="metric-top"><span>UNLOCK CLICKS</span><span class="metric-icon">↗</span></div><strong class="metric-value" id="unlocks-today">0</strong><p>Premium interest today</p><span class="metric-line"></span></article>
+      </section>
+
+      <section class="insight-grid">
+        <article class="glass-card list-card"><div class="card-heading"><div><p class="eyebrow">DISCOVERY</p><h2>Top pages</h2></div><span class="soft-badge">TODAY</span></div><div id="top-pages" class="bar-list"><p class="empty-state">Waiting for the first visits…</p></div></article>
+        <article class="glass-card list-card"><div class="card-heading"><div><p class="eyebrow">ACQUISITION</p><h2>Where they come from</h2></div><span class="soft-badge">REFERRERS</span></div><div id="referrers" class="bar-list"><p class="empty-state">Waiting for traffic sources…</p></div></article>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="glass-card devices-card"><div class="card-heading"><div><p class="eyebrow">PLATFORMS</p><h2>Device mix</h2></div><span class="soft-badge">SESSIONS</span></div><div class="device-layout"><div id="device-donut" class="donut"><div><strong id="device-total">0</strong><small>sessions</small></div></div><div id="devices" class="device-legend"><p class="empty-state">No device data yet.</p></div></div></article>
+        <article class="glass-card list-card unlock-card"><div class="card-heading"><div><p class="eyebrow">CONVERSION INTEREST</p><h2>Unlock activity</h2></div><span class="gold-badge">↗ CLICKS</span></div><div id="unlock-pages" class="compact-list"><p class="empty-state">Unlock clicks will appear here.</p></div></article>
+      </section>
+
+      <footer class="dashboard-footer"><span><i class="live-dot"></i> Updates every 10 seconds</span><span>Anonymous sessions · No stored IPs · Ghana time (GMT)</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
