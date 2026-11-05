@@ -9,7 +9,7 @@ const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || 'predict2u@gmail.com').tri
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 // Accept the supplied secret and the connector-normalized legacy form if a secret
 // contained an underscore stripped by the hosting connector's string encoder.
-const passwordMatches = value => safeEqual(value, ADMIN_PASSWORD) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, ''));
+const passwordMatches = value => safeEqual(value, ADMIN_PASSWORD) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '')) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '%5F')) || safeEqual(value, ADMIN_PASSWORD.replace(/_/g, '%5f'));
 const SESSION_TTL = 12 * 60 * 60 * 1000;
 const ONLINE_WINDOW = 5 * 60 * 1000;
 const RETENTION = 48 * 60 * 60 * 1000;
