@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const persist = require('./persist');
 
 const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || 'predict2u@gmail.com').trim().toLowerCase();
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
@@ -20,6 +21,20 @@ const sessions = new Map();
 const loginAttempts = new Map();
 const seenBySession = new Map();
 let lastPrune = 0;
+let persistMode = persist.enabled ? 'redis' : 'in-memory';
+let hydrated = !persist.enabled;
+
+async function hydrate() {
+  if (hydrated) return;
+  const loaded = await persist.loadEvents(MAX_EVENTS);
+  persistMode = loaded.mode;
+  if (Array.isArray(loaded.events) && loaded.events.length) {
+    events.length = 0;
+    events.push.apply(events, loaded.events);
+    for (const event of events) seenBySession.set(event.sid, event.t);
+  }
+  hydrated = true;
+}
 
 const asset = name => fs.readFileSync(path.join(__dirname, 'admin-assets', name));
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -149,6 +164,7 @@ function coarseDevice(value, ua) {
 }
 async function collect(req, res, origin) {
   if (!originAllowed(origin)) return json(res, 403, {ok:false}, origin);
+  await hydrate();
   let input;
   try { input = JSON.parse(await readBody(req) || '{}'); }
   catch (_) { return json(res, 400, {ok:false}, origin); }
@@ -171,13 +187,15 @@ async function collect(req, res, origin) {
   if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
   seenBySession.set(sid, now);
   prune(now);
+  persistMode = await persist.saveEvent(event, MAX_EVENTS);
   return json(res, 202, {ok:true}, origin);
 }
 function top(map, limit = 8) {
   return [...map.entries()].map(([name, value]) => ({name, value})).sort((a,b) => b.value - a.value || a.name.localeCompare(b.name)).slice(0, limit);
 }
 function increment(map, key, amount = 1) { map.set(key, (map.get(key) || 0) + amount); }
-function metrics() {
+async function metrics() {
+  await hydrate();
   const now = Date.now();
   prune(now);
   const today = dayKey(now);
@@ -224,7 +242,7 @@ function metrics() {
     referrers: top(referrerCounts),
     devices: top(devices, 3),
     unlockPages: top(unlockPages, 6),
-    storage: 'in-memory',
+    storage: persistMode,
     retentionHours: 48
   };
 }
@@ -251,7 +269,7 @@ async function login(req, res) {
   return redirect(res, '/admin', sessionCookie(token, SESSION_TTL / 1000));
 }
 async function handle(req, res, pathname, origin) {
-  if (pathname === '/analytics/collect') {
+  if (pathname === '/analytics/collect' || pathname === '/live/hit') {
     if (req.method === 'OPTIONS') return json(res, 204, {}, origin);
     if (req.method !== 'POST') return json(res, 405, {error:'POST only'}, origin);
     return collect(req, res, origin);
@@ -276,7 +294,7 @@ async function handle(req, res, pathname, origin) {
   if (pathname === '/admin/metrics') {
     if (req.method !== 'GET') return json(res, 405, {error:'GET only'}, origin, true);
     if ((!ADMIN_PASSWORD && !ADMIN_PASSWORD_SHA256) || !adminSession(req)) return json(res, 401, {error:'Authentication required'}, origin, true);
-    return json(res, 200, metrics(), origin, true);
+    return json(res, 200, await metrics(), origin, true);
   }
   return html(res, 404, loginPage('Page not found.'));
 }

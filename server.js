@@ -102,11 +102,11 @@ let currentPath='';
 function send(res,code,obj,origin){const h={'Content-Type':'application/json','Cache-Control':'public, max-age=30',Vary:'Origin'};
   if(origin&&ORIG.some(r=>r.test(origin))){h['Access-Control-Allow-Origin']=origin;h['Access-Control-Allow-Methods']='GET, POST, OPTIONS';h['Access-Control-Allow-Headers']='Content-Type'}if(/^\/(pay|unlock)/.test(currentPath||''))h['Cache-Control']='no-store';res.writeHead(code,h);res.end(code===204?'':JSON.stringify(obj))}
 http.createServer(async(req,res)=>{const o=req.headers.origin,u=new URL(req.url,'http://x'),p=u.pathname;
-  if(req.method==='OPTIONS'&&p==='/analytics/collect')return adminAnalytics.handle(req,res,p,o);
+  if(req.method==='OPTIONS'&&(p==='/analytics/collect'||p==='/live/hit'))return adminAnalytics.handle(req,res,p,o);
   if(req.method==='OPTIONS')return send(res,204,{},o);
   currentPath=p;
   if(p==='/'||p==='/health')return send(res,200,{ok:true,books:Object.keys(BOOKS),pay:payOn(),t:Date.now()},o);
-  if(p==='/analytics/collect'||p==='/admin'||p.startsWith('/admin/')){try{return await adminAnalytics.handle(req,res,p,o)}catch(e){console.error('admin route error',e.message);if(!res.headersSent){res.writeHead(500,{'Content-Type':'text/plain','Cache-Control':'no-store'});res.end('Admin route error')}return}}
+  if(p==='/analytics/collect'||p==='/live/hit'||p==='/admin'||p.startsWith('/admin/')){try{return await adminAnalytics.handle(req,res,p,o)}catch(e){console.error('admin route error',e.message);if(!res.headersSent){res.writeHead(500,{'Content-Type':'text/plain','Cache-Control':'no-store'});res.end('Admin route error')}return}}
   if(p.startsWith('/pay/')||p==='/unlock'||p==='/paystack/webhook'){try{if(await payRoute(req,res,p,u,o))return}catch(e){return send(res,502,{error:'payment error',detail:String(e.message||e)},o)}}
   const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
   if(limited(ip))return send(res,429,{error:'rate limited (60/min)'},o);

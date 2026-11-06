@@ -1,4 +1,10 @@
 services:
+  - type: keyvalue
+    name: p2u-relay-kv
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
   - type: web
     name: p2u-relay
     runtime: node
@@ -21,3 +27,8 @@ services:
         sync: false
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
+      - key: REDIS_URL
+        fromService:
+          name: p2u-relay-kv
+          type: keyvalue
+          property: connectionString
